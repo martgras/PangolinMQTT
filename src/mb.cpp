@@ -26,6 +26,7 @@ SOFTWARE.
 
 PANG_MEM_POOL       mb::pool;
 
+<<<<<<< HEAD
 mb::mb(size_t l,uint8_t* d,uint16_t i,ADFP f,bool track): managed(track), len(l),data(d), id(i),frag(f){ // always unmanaged - sould only be called by onData
 //    PANGO_PRINT("LONG-WINDED CTOR %08X len=%d managed=%d\n",d,l,managed);
     manage();
@@ -37,28 +38,43 @@ mb::mb(ADFP p, bool track): managed(track), data(p) {
     offset=remlen.second;
 //    rl=remlen.first; // mqtt "remaining length"
     len=1+offset+remlen.first; // MQTT msg size
+=======
+mb::mb(size_t l,uint8_t* d,uint16_t i,ADFP f,bool track): len(l),id(i),data(d),frag(f),managed(track){ manage(); } // always unmanaged - should only be called by onData
+
+mb::mb(ADFP p, bool track): data(p),managed(track) {
+    uint32_t multiplier = 1;
+    uint32_t value = 0;
+    uint8_t encodedByte;//,rl=0;
+    ADFP pp=&data[1];
+    do{
+        encodedByte = *pp++;
+        offset++;
+        value += (encodedByte & 0x7f) * multiplier;
+        multiplier *= 128;
+    } while ((encodedByte & 0x80) != 0);
+    len=1+offset+value; // MQTT msg size
+>>>>>>> e8aea4b4728b1933407195f7a10a5e6888c70341
     manage();
-//    PANGO_PRINT("SKELETON %08X TYPE %s len=%d managed=%d\n",data,PANGO::getPktName(data[0]),len,managed);
 //  type 0x30 only
     if(isPub()){
-        uint8_t     bits=data[0] & 0x0f;
+        uint8_t bits=data[0] & 0x0f;
         dup=(bits & 0x8) >> 3;
         qos=(bits & 0x6) >> 1;
         retain=bits & 0x1;
 
-        uint8_t* p=start();
+        uint8_t* ps=start();
         id=0;
-        size_t tlen=PANGO::_peek16(p);p+=2;
+        size_t tlen=PANGO::_peek16(ps);ps+=2;
         char c_topic[tlen+1];
-        memcpy(&c_topic[0],p,tlen);c_topic[tlen]='\0';
+        memcpy(&c_topic[0],ps,tlen);c_topic[tlen]='\0';
         topic.assign(&c_topic[0],tlen);
-        p+=tlen;
+        ps+=tlen;
         if(qos) {
-            id=PANGO::_peek16(p);
-            p+=2;
+            id=PANGO::_peek16(ps);
+            ps+=2;
         }
-        plen=data+len-p;
-        payload=p;
+        plen=data+len-ps;
+        payload=ps;
     }
 }
 
@@ -102,9 +118,9 @@ void mb::manage(){
 #ifdef PANGO_DEBUG
 void mb::dump(){
     if(data){
-        PANGO_PRINT("MB %08X TYPE %02X L=%d M=%d O=%d I=%d Q=%d F=%08X\n",data,data[0],len,managed,offset,id,qos,frag);
+        PANGO_PRINT4("MB %08X TYPE %02X L=%d M=%d O=%d I=%d Q=%d F=%08X\n",data,data[0],len,managed,offset,id,qos,frag);
         PANGO::dumphex(data,len);
-    } else PANGO_PRINT("MB %08X ZL or bare: can't dump\n",data);
+    } else PANGO_PRINT4("MB %08X ZL or bare: can't dump\n",data);
 }
 #else
 void mb::dump(){}
